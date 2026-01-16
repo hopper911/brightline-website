@@ -1,0 +1,54 @@
+// Prisma schema for portfolio media assets (PostgreSQL for Vercel Postgres)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MediaAsset {
+  id           String    @id @default(cuid())
+  kind         MediaKind
+  title        String
+  subtitle     String?
+  description  String?
+  url          String    @unique
+  thumbnailUrl String?
+  width        Int?
+  height       Int?
+  durationSec  Int?
+  altText      String?
+  aspectRatio  String?
+  featured     Boolean   @default(false)
+  sortOrder    Int       @default(0)
+  source       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  tags         MediaAssetTag[]
+}
+
+model Tag {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  createdAt DateTime        @default(now())
+  assets    MediaAssetTag[]
+}
+
+model MediaAssetTag {
+  assetId String
+  tagId   String
+
+  asset MediaAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  tag   Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([assetId, tagId])
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+}
+

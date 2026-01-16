@@ -2,16 +2,27 @@
   "name": "brightline-website",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "SCHEMA=$([ \"$VERCEL\" = \"1\" ] && echo prisma/schema.postgres.prisma || echo prisma/schema.prisma); prisma migrate deploy --schema $SCHEMA && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "SCHEMA=$([ \"$VERCEL\" = \"1\" ] && echo prisma/schema.postgres.prisma || echo prisma/schema.prisma); prisma generate --schema $SCHEMA",
+    "prisma:generate": "prisma generate --schema prisma/schema.prisma",
+    "prisma:generate:pg": "prisma generate --schema prisma/schema.postgres.prisma",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "prisma:migrate:pg": "prisma migrate deploy --schema prisma/schema.postgres.prisma",
+    "prisma:studio": "prisma studio",
+    "db:seed": "node prisma/seed.mjs"
   },
   "dependencies": {
     "next": "16.1.2",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "@prisma/client": "^5.20.0"
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.18",
@@ -25,6 +36,7 @@
     "eslint-config-next": "16.1.2",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
-    "typescript": "^5"
+    "typescript": "^5",
+    "prisma": "^5.20.0"
   }
 }
