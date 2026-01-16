@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(req: NextRequest) {
   const url = req.nextUrl
   const host = req.headers.get('host') || ''
-  const expectedHost = (process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'brightlinephotography.com').toLowerCase()
+  const expectedHost = (process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'brightlinephotography.co').toLowerCase()
 
   // Enforce canonical host for all non-local requests
   const isLocal = host.includes('localhost') || host.startsWith('127.0.0.1')
@@ -41,4 +41,3 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: ['/:path*'],
 }
-
