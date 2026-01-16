@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import AdminNav from '@/components/AdminNav'
 
 type Health = { ok: boolean; error?: string }
 
@@ -26,7 +27,9 @@ export default function AdminStatusPage() {
   }, [])
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-8">
+    <div>
+      <AdminNav />
+      <div className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="text-2xl font-semibold tracking-wide">System Status</h1>
 
       <div className="mt-6 grid gap-4">
@@ -49,7 +52,7 @@ export default function AdminStatusPage() {
           </div>
         </div>
       </div>
+      </div>
     </div>
   )
 }
-
