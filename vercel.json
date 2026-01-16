@@ -1,0 +1,9 @@
+{
+  "framework": "nextjs",
+  "regions": ["iad"],
+  "buildCommand": "pnpm run build:vercel",
+  "github": {
+    "silent": true,
+    "autoJobCancelation": true
+  }
+}

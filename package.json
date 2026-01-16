@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "SCHEMA=$([ \"$VERCEL\" = \"1\" ] && echo prisma/schema.postgres.prisma || echo prisma/schema.prisma); prisma migrate deploy --schema $SCHEMA && next build",
+    "build:vercel": "prisma generate --schema prisma/schema.postgres.prisma && prisma db push --schema prisma/schema.postgres.prisma && next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "SCHEMA=$([ \"$VERCEL\" = \"1\" ] && echo prisma/schema.postgres.prisma || echo prisma/schema.prisma); prisma generate --schema $SCHEMA",
