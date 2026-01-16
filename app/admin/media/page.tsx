@@ -25,6 +25,7 @@ type MediaForm = {
 
 export default function AdminMediaPage() {
   const [items, setItems] = useState<any[]>([])
+  const [editing, setEditing] = useState<any | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -49,6 +50,40 @@ export default function AdminMediaPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function onDelete(id: string) {
+    if (!confirm('Delete this item?')) return
+    try {
+      const r = await fetch(`/api/media/${id}`, { method: 'DELETE' })
+      const j = await r.json()
+      if (!r.ok || !j.ok) throw new Error(j?.error || 'Delete failed')
+      setMessage('Deleted')
+      load()
+    } catch (e: any) {
+      setError(e?.message || 'Delete failed')
+    }
+  }
+
+  function startEdit(item: any) {
+    setEditing(item)
+    setForm({
+      kind: item.kind,
+      title: item.title,
+      url: item.url,
+      thumbnailUrl: item.thumbnailUrl || '',
+      subtitle: item.subtitle || '',
+      description: item.description || '',
+      width: item.width || undefined,
+      height: item.height || undefined,
+      durationSec: item.durationSec || undefined,
+      altText: item.altText || '',
+      aspectRatio: item.aspectRatio || '',
+      featured: item.featured || false,
+      sortOrder: item.sortOrder || 0,
+      source: item.source || '',
+      tags: (item.tags || []).join(', '),
+    })
   }
 
   useEffect(() => {
@@ -79,14 +114,15 @@ export default function AdminMediaPage() {
     }
 
     try {
-      const r = await fetch('/api/media', {
-        method: 'POST',
+      const r = await fetch(editing ? `/api/media/${editing.id}` : '/api/media', {
+        method: editing ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       const j = await r.json()
       if (!r.ok) throw new Error(j?.error || 'Failed to create media')
       setMessage('Saved successfully')
+      setEditing(null)
       setForm((prev) => ({ ...prev, title: '', url: '', thumbnailUrl: '' }))
       load()
     } catch (e: any) {
@@ -260,6 +296,10 @@ export default function AdminMediaPage() {
                 {i.tags?.length ? (
                   <div className="mt-1 text-[11px] opacity-70">Tags: {i.tags.join(', ')}</div>
                 ) : null}
+                <div className="mt-3 flex gap-2 text-xs">
+                  <button onClick={() => startEdit(i)} className="rounded border border-white/20 px-2 py-1 hover:border-white/40">Edit</button>
+                  <button onClick={() => onDelete(i.id)} className="rounded border border-red-400/40 px-2 py-1 text-red-300 hover:border-red-400">Delete</button>
+                </div>
               </div>
             ))}
           </div>
@@ -268,4 +308,3 @@ export default function AdminMediaPage() {
     </div>
   )
 }
-
