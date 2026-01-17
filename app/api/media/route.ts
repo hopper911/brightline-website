@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import type { MediaKind, Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const toBool = (v: string | null) => (v === null ? undefined : v === "true");
@@ -21,8 +21,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const kindParam = searchParams.get("kind");
-  const kind: MediaKind | undefined =
-    kindParam === "IMAGE" || kindParam === "VIDEO" ? (kindParam as MediaKind) : undefined;
+  const kind = kindParam === "IMAGE" || kindParam === "VIDEO" ? kindParam : undefined;
 
   const tag = searchParams.get("tag")?.trim() || undefined;
   const featured = toBool(searchParams.get("featured"));
@@ -65,7 +64,7 @@ export async function POST(request: Request) {
     .transform((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined));
 
   const mediaCreateSchema = z.object({
-    kind: z.enum(["IMAGE", "VIDEO"]).transform((k) => k as MediaKind),
+    kind: z.enum(["IMAGE", "VIDEO"]),
     title: z.string().min(1).transform((s) => s.trim()),
     url: z
       .string()
@@ -151,7 +150,6 @@ export async function POST(request: Request) {
     if (ensuredTags.length) {
       await tx.mediaAssetTag.createMany({
         data: ensuredTags.map((t) => ({ assetId: item.id, tagId: t.id })),
-        skipDuplicates: true,
       });
     }
 

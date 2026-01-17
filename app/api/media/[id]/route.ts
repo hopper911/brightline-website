@@ -114,7 +114,6 @@ export async function PATCH(request: Request, { params }: Ctx) {
     if (ensuredTags.length) {
       await tx.mediaAssetTag.createMany({
         data: ensuredTags.map((t) => ({ assetId: updated.id, tagId: t.id })),
-        skipDuplicates: true,
       });
     }
 

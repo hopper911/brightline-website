@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
+import { jwtVerify } from 'jose'
 import type { NextRequest } from 'next/server'
 
-export function proxy(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const url = req.nextUrl
   const host = req.headers.get('host') || ''
   const expectedHost = (process.env.NEXT_PUBLIC_PRIMARY_DOMAIN || 'brightlinephotography.co').toLowerCase()
@@ -14,25 +15,31 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Basic auth for admin area
+  // Basic auth for admin area, but allowlist specific routes
   if (url.pathname.startsWith('/admin')) {
-    const header = req.headers.get('authorization') || ''
-    const expectedUser = process.env.ADMIN_USER || 'admin'
-    const expectedPass = process.env.ADMIN_PASS || 'admin'
-    if (header.startsWith('Basic ')) {
-      try {
-        const base64 = header.slice(6)
-        const [user, pass] = Buffer.from(base64, 'base64').toString().split(':')
-        if (user === expectedUser && pass === expectedPass) {
-          return NextResponse.next()
-        }
-      } catch {
-        // fall through
-      }
+    const allowlist = ['/admin/login']
+    const isAllowlisted = allowlist.some((p) => url.pathname === p || url.pathname.startsWith(p + '/'))
+    if (isAllowlisted) return NextResponse.next()
+
+    const cookie = req.cookies.get('admin_session')?.value
+    const secret = process.env.ADMIN_SESSION_SECRET || ''
+    const redirectToLogin = () => {
+      const next = encodeURIComponent(url.pathname + (url.search || ''))
+      url.pathname = '/admin/login'
+      url.search = next ? `?next=${next}` : ''
+      return NextResponse.redirect(url)
     }
-    const res = new NextResponse('Authentication required', { status: 401 })
-    res.headers.set('WWW-Authenticate', 'Basic realm="Admin Area"')
-    return res
+
+    if (!cookie || !secret) {
+      return redirectToLogin()
+    }
+    try {
+      const key = new TextEncoder().encode(secret)
+      await jwtVerify(cookie, key)
+      return NextResponse.next()
+    } catch {
+      return redirectToLogin()
+    }
   }
 
   return NextResponse.next()
@@ -41,4 +48,3 @@ export function proxy(req: NextRequest) {
 export const config = {
   matcher: ['/:path*'],
 }
-

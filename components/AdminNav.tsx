@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react'
 
 export default function AdminNav() {
   const [ok, setOk] = useState<boolean | null>(null)
+  const [signingOut, setSigningOut] = useState(false)
+  const [me, setMe] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -14,6 +16,12 @@ export default function AdminNav() {
         const j = await res.json()
         if (!mounted) return
         setOk(Boolean(j?.ok))
+        // also get current user
+        try {
+          const meRes = await fetch('/api/admin/me', { cache: 'no-store' })
+          const meJ = await meRes.json()
+          if (mounted && meRes.ok) setMe(meJ?.username || null)
+        } catch {}
       } catch {
         if (!mounted) return
         setOk(false)
@@ -38,13 +46,29 @@ export default function AdminNav() {
         </Link>
         <nav className="flex items-center gap-4 text-xs uppercase tracking-widest opacity-80">
           <Link href="/admin/media" className="hover:opacity-100">Media</Link>
+          <Link href="/admin/users" className="hover:opacity-100">Users</Link>
           <Link href="/admin/status" className="hover:opacity-100 flex items-center gap-2">
             <span>Status</span>
             <span title={dotTitle} className={`inline-block h-2.5 w-2.5 rounded-full ${dotColor}`} />
           </Link>
+          {me ? <span className="opacity-70">{me}</span> : null}
+          <button
+            onClick={async () => {
+              try {
+                setSigningOut(true)
+                await fetch('/api/admin/logout', { method: 'POST' })
+                window.location.href = '/admin/login'
+              } finally {
+                setSigningOut(false)
+              }
+            }}
+            className="hover:opacity-100 disabled:opacity-50"
+            disabled={signingOut}
+          >
+            {signingOut ? 'Signing out…' : 'Sign out'}
+          </button>
         </nav>
       </div>
     </header>
   )
 }
-

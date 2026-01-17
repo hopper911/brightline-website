@@ -88,6 +88,34 @@ export default function AdminMediaPage() {
 
   useEffect(() => {
     load()
+    // Listen for broadcasted create events from upload page
+    let ch: BroadcastChannel | null = null
+    try {
+      ch = new (window as any).BroadcastChannel('media-updates')
+      if (ch) {
+        const localCh = ch
+        ch.onmessage = (ev: MessageEvent) => {
+          if (localCh && ev?.data?.type === 'created' && ev.data.item) {
+            setItems((prev) => [ev.data.item, ...prev])
+          }
+        }
+      }
+    } catch {}
+    const onStorage = (ev: StorageEvent) => {
+      if (ev.key === 'media-updates' && ev.newValue) {
+        try {
+          const payload = JSON.parse(ev.newValue)
+          if (payload?.type === 'created' && payload.item) {
+            setItems((prev) => [payload.item, ...prev])
+          }
+        } catch {}
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      try { ch?.close() } catch {}
+    }
   }, [])
 
   async function onSubmit(e: React.FormEvent) {
