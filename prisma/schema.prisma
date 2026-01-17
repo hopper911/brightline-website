@@ -10,7 +10,8 @@ datasource db {
 
 model MediaAsset {
   id           String    @id @default(cuid())
-  kind         MediaKind
+  // Use string here for SQLite; emulate enum in app layer
+  kind         String
   title        String
   subtitle     String?
   description  String?
@@ -46,9 +47,3 @@ model MediaAssetTag {
 
   @@id([assetId, tagId])
 }
-
-enum MediaKind {
-  IMAGE
-  VIDEO
-}
-

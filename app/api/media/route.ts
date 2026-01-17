@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-
-type Kind = "IMAGE" | "VIDEO";
+import type { MediaKind, Prisma } from "@prisma/client";
+import { z } from "zod";
 
 const toBool = (v: string | null) => (v === null ? undefined : v === "true");
 const toInt = (v: unknown) =>
@@ -21,17 +21,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
   const kindParam = searchParams.get("kind");
-  const kind: Kind | undefined =
-    kindParam === "IMAGE" || kindParam === "VIDEO" ? kindParam : undefined;
+  const kind: MediaKind | undefined =
+    kindParam === "IMAGE" || kindParam === "VIDEO" ? (kindParam as MediaKind) : undefined;
 
   const tag = searchParams.get("tag")?.trim() || undefined;
   const featured = toBool(searchParams.get("featured"));
 
-  // Use Prisma’s proper input type if you have it; `any` works but this is safer.
-  const where = pickDefined({
+  // Build a typed Prisma where clause
+  const where: Prisma.MediaAssetWhereInput = pickDefined({
     kind,
     featured,
-  }) as any;
+  }) as Prisma.MediaAssetWhereInput;
 
   if (tag) {
     where.tags = { some: { tag: { name: tag } } };
@@ -54,46 +54,79 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const body = await request.json();
 
-  const kind: Kind | undefined =
-    body.kind === "IMAGE" || body.kind === "VIDEO" ? body.kind : undefined;
+  const numberish = z.preprocess(
+    (v) => (typeof v === "string" ? (v.trim() === "" ? undefined : Number(v)) : v),
+    z.number().int().optional()
+  );
 
-  const title: string | undefined = typeof body.title === "string" ? body.title.trim() : undefined;
-  const url: string | undefined = typeof body.url === "string" ? body.url.trim() : undefined;
+  const booleanish = z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .transform((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined));
 
-  if (!kind || !title || !url) {
-    return NextResponse.json(
-      { error: "kind (IMAGE|VIDEO), title, and url are required" },
-      { status: 400 }
-    );
+  const mediaCreateSchema = z.object({
+    kind: z.enum(["IMAGE", "VIDEO"]).transform((k) => k as MediaKind),
+    title: z.string().min(1).transform((s) => s.trim()),
+    url: z
+      .string()
+      .min(1)
+      .transform((s) => s.trim()),
+    thumbnailUrl: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    subtitle: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    description: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    width: numberish,
+    height: numberish,
+    durationSec: numberish,
+    altText: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    aspectRatio: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    featured: booleanish,
+    sortOrder: numberish.default(0),
+    source: z.string().optional().transform((s) => (typeof s === "string" ? s.trim() : undefined)),
+    tags: z.array(z.string()).optional().default([]),
+  });
+
+  const parsed = mediaCreateSchema.safeParse(body);
+  if (!parsed.success) {
+    const formatted = parsed.error.flatten();
+    return NextResponse.json({ error: "Invalid request body", details: formatted }, { status: 400 });
   }
 
-  const tagNames = normalizeTags(body.tags);
+  const {
+    kind,
+    title,
+    url,
+    thumbnailUrl,
+    subtitle,
+    description,
+    width,
+    height,
+    durationSec,
+    altText,
+    aspectRatio,
+    featured,
+    sortOrder,
+    source,
+    tags: tagsInput,
+  } = parsed.data;
 
-  const featured =
-    typeof body.featured === "boolean"
-      ? body.featured
-      : typeof body.featured === "string"
-      ? body.featured === "true"
-      : undefined;
-
-  const sortOrder = toInt(body.sortOrder) ?? 0;
+  const tagNames = normalizeTags(tagsInput);
 
   // Only include fields that are defined, to avoid Prisma complaints.
   const payload = pickDefined({
     kind,
     title,
     url,
-    thumbnailUrl: typeof body.thumbnailUrl === "string" ? body.thumbnailUrl.trim() : undefined,
-    subtitle: typeof body.subtitle === "string" ? body.subtitle.trim() : undefined,
-    description: typeof body.description === "string" ? body.description.trim() : undefined,
-    width: toInt(body.width),
-    height: toInt(body.height),
-    durationSec: toInt(body.durationSec),
-    altText: typeof body.altText === "string" ? body.altText.trim() : undefined,
-    aspectRatio: typeof body.aspectRatio === "string" ? body.aspectRatio.trim() : undefined,
-    featured, // can be undefined
+    thumbnailUrl,
+    subtitle,
+    description,
+    width,
+    height,
+    durationSec,
+    altText,
+    aspectRatio,
+    featured,
     sortOrder,
-    source: typeof body.source === "string" ? body.source.trim() : undefined,
+    source,
   });
 
   const result = await prisma.$transaction(async (tx) => {
@@ -109,8 +142,8 @@ export async function POST(request: Request) {
 
     const item = await tx.mediaAsset.upsert({
       where: { url },
-      update: payload,
-      create: payload,
+      update: payload as Prisma.MediaAssetUpdateInput,
+      create: payload as Prisma.MediaAssetCreateInput,
     });
 
     await tx.mediaAssetTag.deleteMany({ where: { assetId: item.id } });
